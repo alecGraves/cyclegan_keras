@@ -48,6 +48,8 @@ class InstanceNormalization(Layer):
         else:
             x_w, x_h = (1, 2)
 
+        # Very similar to batchnorm, but normalization over individual inputs.
+
         hw = k.cast(k.shape(x)[x_h]* k.shape(x)[x_w], k.floatx())
 
         # Instance means
@@ -60,12 +62,10 @@ class InstanceNormalization(Layer):
         sig2 = k.square(x - mu)
         sig2 = k.sum(sig2, axis=x_w)
         sig2 = k.sum(sig2, axis=x_h)
+        sig2 = k.reshape(sig2, (k.shape(sig2)[0], k.shape(sig2)[1], 1, 1))
 
         # Normalize
-        y = k.reshape(sig2, (k.shape(sig2)[0], k.shape(sig2)[1], 1, 1))
-        y = y + self.epsilon
-        y = k.sqrt(y)
-        y = (x - mu) / y
+        y = (x - mu) / k.sqrt(sig2 + self.epsilon)
 
         # Scale and Shift
         if k.image_data_format() is 'channels_first':
