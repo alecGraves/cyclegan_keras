@@ -11,7 +11,7 @@ from keras.models import Model
 
 import context
 from cyclegan.models import mnist_discriminator, mnist_generator
-from cyclegan.losses import cycle_loss, discriminator_loss
+from cyclegan.losses import *
 
 def load_mnist():
     '''
@@ -131,7 +131,7 @@ def test_cyclegan():
                                                np.concatenate((np.zeros(history_size), np.ones(batch_size)))))
             print("MNIST Discriminator Loss:", mnist_discrim_loss[-1])
             faces_discrim_loss.append(discriminator_faces.train_on_batch(np.concatenate((generation_history_mnist, faces_batch_real)),
-                                               np.concatenate(np.zeros(history_size), (np.ones(batch_size)))))
+                                               np.concatenate((np.zeros(history_size), (np.ones(batch_size))))))
             print("Faces Discriminator Loss:", faces_discrim_loss[-1])
 
             # Train generators.
