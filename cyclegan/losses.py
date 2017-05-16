@@ -4,9 +4,11 @@ Loss functions for CycleGan
 import keras.backend as k
 from keras.losses import mean_squared_error
 
+_disc_train_thresh = 0.2
+
 def discriminator_loss(y_true, y_pred):
     loss = mean_squared_error(y_true, y_pred)
-    is_large = k.greater(loss, k.constant(0.2)) # threshold
+    is_large = k.greater(loss, k.constant(_disc_train_thresh)) # threshold
     is_large = k.cast(is_large, k.floatx())
     return loss * is_large # binary threshold the loss to prevent overtraining the discriminator
 
