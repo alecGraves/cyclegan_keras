@@ -35,10 +35,12 @@ class InstanceNormalization(Layer):
     def build(self, input_shape):
         self.gamma = self.add_weight(shape=(input_shape[self.axis],),
                                      initializer=self.gamma_initializer,
-                                     trainable=True)
+                                     trainable=True,
+                                     name='gamma')
         self.beta = self.add_weight(shape=(input_shape[self.axis],),
                                     initializer=self.beta_initializer,
-                                    trainable=True)
+                                    trainable=True,
+                                    name='beta')
         super(InstanceNormalization, self).build(input_shape)
 
     def call(self, x):
