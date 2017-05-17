@@ -1,7 +1,7 @@
 '''
 source for models
 '''
-from keras.layers import Conv2D, UpSampling2D, Input, GlobalAveragePooling2D
+from keras.layers import Conv2D, UpSampling2D, Input, Activation, GlobalAveragePooling2D
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.merge import Add
 from keras.models import Model
@@ -64,7 +64,7 @@ def mnist_generator(input_shape=(28, 28, 1), scale=1/4):
     x = InstanceNormalization()(x)
     x = LeakyReLU()(x)
     x = UpSampling2D(size=(2, 2))(x)
-    x = Conv2D(1, (1, 1), activation='linear')(x)
+    x = Conv2D(1, (1, 1), activation='sigmoid')(x)
     return Model(x0, x)
 
 def mnist_discriminator(input_shape=(28, 28, 1), scale=1/4):
@@ -83,6 +83,7 @@ def mnist_discriminator(input_shape=(28, 28, 1), scale=1/4):
     x = Conv2D(int(128*scale), (3, 3), strides=(2, 2), padding='same')(x)
     x = InstanceNormalization()(x)
     x = LeakyReLU()(x)
-    x = Conv2D(1, (3, 3), strides=(2, 2), padding='same', activation='sigmoid')(x)
+    x = Conv2D(1, (3, 3), strides=(2, 2), padding='same')(x)
     x = GlobalAveragePooling2D()(x) # Flatten
+    x = Activation('sigmoid')(x)
     return Model(x0, x)
