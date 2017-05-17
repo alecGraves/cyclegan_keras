@@ -72,8 +72,8 @@ def test_cyclegan():
 
     discriminator_faces.compile(optimizer='Adam', loss=discriminator_loss)
     discriminator_mnist.compile(optimizer='Adam', loss=discriminator_loss)
-    generator_faces.compile(optimizer='Adam', loss=discriminator_loss)
-    generator_mnist.compile(optimizer='Adam', loss=discriminator_loss)
+    generator_faces.compile(optimizer='Adam', loss='mean_squared_error')
+    generator_mnist.compile(optimizer='Adam', loss='mean_squared_error')
 
     fake_face = generator_faces(mnist_input)
     fake_mnist = generator_mnist(face_input)
@@ -83,15 +83,11 @@ def test_cyclegan():
     discriminator_faces.trainable = False
     discriminator_mnist.trainable = False
 
-    face_gen_trainer = Model(mnist_input, discriminator_faces(fake_face))
-    mnist_gen_trainer = Model(face_input, discriminator_mnist(fake_mnist))
-    mnist_cyc = Model(mnist_input, generator_mnist(fake_face))
-    faces_cyc = Model(face_input, generator_faces(fake_mnist))
+    face_gen_trainer = Model(mnist_input, [discriminator_faces(fake_face), generator_mnist(fake_face)])
+    mnist_gen_trainer = Model(face_input, [discriminator_mnist(fake_mnist), generator_faces(fake_mnist)])
 
-    face_gen_trainer.compile(optimizer='Adam', loss='mean_squared_error')
-    mnist_gen_trainer.compile(optimizer='Adam', loss='mean_squared_error')
-    mnist_cyc.compile(optimizer='Adam', loss=cycle_loss)
-    faces_cyc.compile(optimizer='Adam', loss=cycle_loss)
+    face_gen_trainer.compile(optimizer='Adam', loss=['mean_squared_error', cycle_loss])
+    mnist_gen_trainer.compile(optimizer='Adam', loss=['mean_squared_error', cycle_loss])
 
     # training time
 
@@ -135,15 +131,18 @@ def test_cyclegan():
             print("Faces Discriminator Loss:", faces_discrim_loss[-1])
 
             # Train generators.
-            mnist_gen_loss.append(mnist_gen_trainer.train_on_batch(faces_batch_real, np.ones(batch_size)))
-            print("MNIST Generator Loss:", mnist_gen_loss[-1])
-            faces_gen_loss.append(face_gen_trainer.train_on_batch(mnist_batch_real, np.ones(batch_size)))
-            print("Faces Generator Loss:", faces_gen_loss[-1])
             cyc_multiplier = 10
-            mnist_cyc_loss.append(mnist_cyc.train_on_batch(mnist_batch_real, mnist_batch_real, sample_weight=np.array([cyc_multiplier]*batch_size)))
-            print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
-            faces_cyc_loss.append(faces_cyc.train_on_batch(faces_batch_real, faces_batch_real, sample_weight=np.array([cyc_multiplier]*batch_size)))
-            print("Faces Cyclic Loss", faces_cyc_loss[-1])
+
+            mnist_gen_loss.append(mnist_gen_trainer.train_on_batch(faces_batch_real,
+                                                                   [np.ones(batch_size), faces_batch_real],
+                                                                   sample_weight=[np.ones(batch_size), np.array([cyc_multiplier]*batch_size)]))
+            print("MNIST Generator Loss:", mnist_gen_loss[-1][1])
+            print("Face(MNIST(face)) Cycle Loss:", mnist_gen_loss[-1][2])
+            faces_gen_loss.append(face_gen_trainer.train_on_batch(mnist_batch_real,
+                                                                  [np.ones(batch_size), mnist_batch_real],
+                                                                  sample_weight=[np.ones(batch_size), np.array([cyc_multiplier]*batch_size)]))
+            print("Faces Generator Loss:", faces_gen_loss[-1][1])
+            print("MNIST(Face(mnist))) Cycle Loss:", mnist_gen_loss[-1][2])
 
 if __name__ == "__main__":
     test_cyclegan()
