@@ -57,8 +57,8 @@ def test_cyclegan():
     faces = load_input_images()
 
     nb_epochs = 1
-    batch_size = 8
-    history_size = 64
+    batch_size = faces.shape[0]
+    history_size = int(batch_size * 7/3)
     generation_history_mnist = None
     generation_history_faces = None
 
@@ -123,15 +123,15 @@ def test_cyclegan():
             # Update history with new generated images.
             mnist_batch_gen = generator_mnist.predict_on_batch(faces_batch_real)
             faces_batch_gen = generator_faces.predict_on_batch(mnist_batch_real)
-            generation_history_mnist = np.concatenate((generation_history_mnist[8:], mnist_batch_gen))
-            generation_history_faces = np.concatenate((generation_history_faces[8:], faces_batch_gen))
+            generation_history_mnist = np.concatenate((generation_history_mnist[batch_size:], mnist_batch_gen))
+            generation_history_faces = np.concatenate((generation_history_faces[batch_size:], faces_batch_gen))
 
             # Train discriminators.
-            mnist_discrim_loss.append(discriminator_mnist.train_on_batch(np.concatenate((generation_history_mnist, mnist_batch_real)),
-                                               np.concatenate((np.zeros(history_size), np.ones(batch_size)))))
+            mnist_discrim_loss.append(discriminator_mnist.train_on_batch(np.concatenate((generation_history_mnist[:batch_size], mnist_batch_real)),
+                                               np.concatenate((np.zeros(batch_size), np.ones(batch_size)))))
             print("MNIST Discriminator Loss:", mnist_discrim_loss[-1])
-            faces_discrim_loss.append(discriminator_faces.train_on_batch(np.concatenate((generation_history_mnist, faces_batch_real)),
-                                               np.concatenate((np.zeros(history_size), (np.ones(batch_size))))))
+            faces_discrim_loss.append(discriminator_faces.train_on_batch(np.concatenate((generation_history_faces[:batch_size], faces_batch_real)),
+                                               np.concatenate((np.zeros(batch_size), (np.ones(batch_size))))))
             print("Faces Discriminator Loss:", faces_discrim_loss[-1])
 
             # Train generators.
@@ -139,15 +139,11 @@ def test_cyclegan():
             print("MNIST Generator Loss:", mnist_gen_loss[-1])
             faces_gen_loss.append(face_gen_trainer.train_on_batch(mnist_batch_real, np.ones(batch_size)))
             print("Faces Generator Loss:", faces_gen_loss[-1])
-            cyc_repeat = 3
-            for i in range(cyc_repeat):
-                loss0 = mnist_cyc.train_on_batch(mnist_batch_real, mnist_batch_real)
-                loss1 = faces_cyc.train_on_batch(faces_batch_real, faces_batch_real)
-                if i == cyc_repeat - 1:
-                    mnist_cyc_loss.append(loss0)
-                    print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
-                    faces_cyc_loss.append(loss1)
-                    print("Faces Cyclic Loss", faces_cyc_loss[-1])
+            cyc_multiplier = 10
+            mnist_cyc_loss.append(mnist_cyc.train_on_batch(mnist_batch_real, mnist_batch_real, sample_weight=np.array([cyc_multiplier]*batch_size)))
+            print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
+            faces_cyc_loss.append(faces_cyc.train_on_batch(faces_batch_real, faces_batch_real, sample_weight=np.array([cyc_multiplier]*batch_size)))
+            print("Faces Cyclic Loss", faces_cyc_loss[-1])
 
 if __name__ == "__main__":
     test_cyclegan()
