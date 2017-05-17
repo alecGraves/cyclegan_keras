@@ -2,6 +2,7 @@
 Test cyclegan using MNIST
 '''
 import os
+import json
 from PIL import Image
 import numpy as np
 import keras.backend as k
@@ -50,9 +51,9 @@ def load_input_images(from_jpegs=False):
     images = images.astype('float32')
     images /= 255
     if k.image_data_format() == 'channels_first':
-        images = images.reshape(len(image_names), 1, 28, 28)
+        images = images.reshape(images.shape[0], 1, 28, 28)
     else:
-        images = images.reshape(len(image_names), 28, 28, 1)
+        images = images.reshape(images.shape[0], 28, 28, 1)
     return images
 
 def prettify(image):
@@ -65,13 +66,14 @@ def test_cyclegan():
     mnist_shape, mnist_images = load_mnist()
     faces = load_input_images()
 
-    nb_epochs = 1000
+    nb_epochs = 100
     batch_size = 1024
     adam_lr = 0.0002
     adam_beta_1 = 0.5
     history_size = int(batch_size * 7/3)
     generation_history_mnist = None
     generation_history_faces = None
+    SAVEPATH = 'data'
 
     mnist_input = Input(mnist_shape)
     face_input = Input(mnist_shape)
@@ -113,6 +115,8 @@ def test_cyclegan():
     mnist_cyc_loss = []
     faces_cyc_loss = []
 
+    if not os.path.exists(SAVEPATH):
+        os.makedirs(os.path.join(SAVEPATH, 'images'))
 
     for epoch in range(nb_epochs):
         print("\n\n================================================")
@@ -122,6 +126,15 @@ def test_cyclegan():
                 generation_history_mnist = mnist_images[mnist_indices]
                 faces_indices = np.random.choice(faces.shape[0], history_size)
                 generation_history_faces = faces[faces_indices]
+
+        # Randomly choose mnist image and convert it to a face, then save the result.
+        choice = np.random.choice(mnist_images.shape[0])
+        mnist_in = mnist_images[choice].reshape((1, 28, 28, 1))
+        face_out = generator_faces.predict(mnist_in)
+        mnist_in = Image.fromarray(prettify(mnist_in), mode='L')
+        face_out = Image.fromarray(prettify(face_out), mode='L')
+        mnist_in.save(os.path.join(SAVEPATH, 'images', str(epoch-1)+'_mnist_in.jpg'))
+        face_out.save(os.path.join(SAVEPATH, 'images', str(epoch-1)+'_face_out.jpg'))
 
         for batch in range(int(mnist_images.shape[0]/batch_size)):
             print("\nBatch", batch)
@@ -157,16 +170,23 @@ def test_cyclegan():
             faces_cyc_loss.append(faces_cyc.train_on_batch(faces_batch_real, faces_batch_real, sample_weight=np.array([cyc_multiplier]*batch_size)))
             print("Faces Cyclic Loss:", faces_cyc_loss[-1])
 
-        choice = np.random.choice(mnist_images.shape[0])
-        mnist_in = mnist_images[choice].reshape((1, 28, 28, 1))
-        face_out = generator_faces.predict(mnist_in)
-        mnist_in = Image.fromarray(prettify(mnist_in), mode='L')
-        face_out = Image.fromarray(prettify(face_out), mode='L')
-        mnist_in.save(str(epoch)+'_mnist_in.jpg')
-        face_out.save(str(epoch)+'_face_out.jpg')
+    # Save models.
+    generator_faces.save(os.path.join(SAVEPATH, 'generator_faces.h5'))
+    generator_mnist.save(os.path.join(SAVEPATH, 'generator_mnist.h5'))
 
-    generator_faces.save('generator_faces.h5')
-    generator_mnist.save('generator_mnist.h5')
+    # Save training history.
+    output_dict = {
+        'mnist_discrim_loss' : mnist_discrim_loss,
+        'faces_discrim_loss' : faces_discrim_loss,
+        'mnist_gen_loss' : mnist_gen_loss,
+        'faces_gen_loss' : faces_gen_loss,
+        'mnist_cyc_loss' : mnist_cyc_loss,
+        'faces_cyc_loss' : faces_cyc_loss
+    }
+
+    with open(os.path.join(SAVEPATH, 'log.txt'), 'w') as f:
+        json.dump(output_dict, f, indent=4)
+
 
 if __name__ == "__main__":
     test_cyclegan()
