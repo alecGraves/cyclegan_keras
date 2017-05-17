@@ -65,7 +65,7 @@ def test_cyclegan():
     mnist_shape, mnist_images = load_mnist()
     faces = load_input_images()
 
-    nb_epochs = 100
+    nb_epochs = 1000
     batch_size = 1024
     adam_lr = 0.0002
     adam_beta_1 = 0.5
@@ -166,6 +166,7 @@ def test_cyclegan():
         face_out.save(str(epoch)+'_face_out.jpg')
 
     generator_faces.save('generator_faces.h5')
+    generator_mnist.save('generator_mnist.h5')
 
 if __name__ == "__main__":
     test_cyclegan()
