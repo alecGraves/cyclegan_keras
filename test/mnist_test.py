@@ -203,12 +203,12 @@ def test_cyclegan():
             cats_cyc_loss.append(loss[3])
 
             if (batch%100 == 0):
-                print("MNIST Discriminator Loss:", mnist_discrim_loss[-1])
-                print("Cats Discriminator Loss:", cats_discrim_loss[-1])
-                print("MNIST Generator Loss:", mnist_gen_loss[-1])
-                print("Cats Generator Loss:", cats_gen_loss[-1])
-                print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
-                print("Cats Cyclic Loss:", cats_cyc_loss[-1])
+                print("MNIST Discriminator Loss:", mnist_discrim_loss[-1],
+                "\nCats Discriminator Loss:", cats_discrim_loss[-1],
+                "\nMNIST Generator Loss:", mnist_gen_loss[-1],
+                "\nCats Generator Loss:", cats_gen_loss[-1],
+                "\nMNIST Cyclic Loss:", mnist_cyc_loss[-1],
+                "\nCats Cyclic Loss:", cats_cyc_loss[-1])
 
     # Save models.
     generator_cats.save(os.path.join(SAVEPATH, 'generator_cats.h5'))
