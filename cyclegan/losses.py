@@ -4,7 +4,7 @@ Loss functions for CycleGan
 import keras.backend as k
 from keras.losses import mean_squared_error
 
-_disc_train_thresh = 0.07
+_disc_train_thresh = 0.0
 
 def discriminator_loss(y_true, y_pred):
     loss = mean_squared_error(y_true, y_pred)
