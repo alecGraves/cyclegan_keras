@@ -1,0 +1,8 @@
+nb_epochs = 100
+batch_size = 1024
+adam_lr = 0.0002
+adam_beta_1 = 0.5
+history_size = int(batch_size * 7/3)
+
+loss:
+_disc_train_thresh = 0.07

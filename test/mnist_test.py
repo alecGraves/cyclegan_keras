@@ -121,15 +121,12 @@ def test_cyclegan():
     discriminator_cats.trainable = False
     discriminator_mnist.trainable = False
 
-    cat_gen_trainer = Model(mnist_input, discriminator_cats(fake_cat))
-    mnist_gen_trainer = Model(cat_input, discriminator_mnist(fake_mnist))
-    mnist_cyc = Model(mnist_input, generator_mnist(fake_cat))
-    cats_cyc = Model(cat_input, generator_cats(fake_mnist))
+    trainer = Model([cat_input, mnist_input], [discriminator_cats(fake_cat),  discriminator_mnist(fake_mnist),
+                                               generator_mnist(fake_cat), generator_cats(fake_mnist)])
 
-    cat_gen_trainer.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss='mean_squared_error')
-    mnist_gen_trainer.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss='mean_squared_error')
-    mnist_cyc.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss=cycle_loss)
-    cats_cyc.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss=cycle_loss)
+    trainer.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), 
+                    loss=['mean_squared_error', 'mean_squared_error', cycle_loss, cycle_loss], 
+                    loss_weights=[1., 1., 10., 10.])
 
     # training time
 
@@ -202,9 +199,9 @@ def test_cyclegan():
             print("cats Generator Loss:", cats_gen_loss[-1])
 
             cyc_multiplier = 2.
-            mnist_cyc_loss.append(mnist_cyc.train_on_batch(mnist_batch_real, mnist_batch_real, sample_weight=[cyc_multiplier]))
+            mnist_cyc_loss.append(mnist_cyc.train_on_batch(mnist_batch_real, mnist_batch_real)
             print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
-            cats_cyc_loss.append(cats_cyc.train_on_batch(cats_batch_real, cats_batch_real, sample_weight=[cyc_multiplier]))
+            cats_cyc_loss.append(cats_cyc.train_on_batch(cats_batch_real, cats_batch_real)
             print("Cats Cyclic Loss:", cats_cyc_loss[-1])
 
     # Save models.
