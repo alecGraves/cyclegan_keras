@@ -91,7 +91,7 @@ def test_cyclegan():
     cats = load_input_images()
 
     nb_epochs = 200
-    batch_size = 128
+    batch_size = 1
     adam_lr = 0.0002
     adam_beta_1 = 0.5
     adam_decay = 0.000001
@@ -121,21 +121,21 @@ def test_cyclegan():
     discriminator_cats.trainable = False
     discriminator_mnist.trainable = False
 
-    trainer = Model([cat_input, mnist_input], [discriminator_cats(fake_cat),  discriminator_mnist(fake_mnist),
+    gen_trainer = Model([cat_input, mnist_input], [discriminator_cats(fake_cat),  discriminator_mnist(fake_mnist),
                                                generator_mnist(fake_cat), generator_cats(fake_mnist)])
 
-    trainer.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), 
+    gen_trainer.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), 
                     loss=['mean_squared_error', 'mean_squared_error', cycle_loss, cycle_loss], 
                     loss_weights=[1., 1., 10., 10.])
 
     # training time
 
-    mnist_discrim_loss = [0]
-    cats_discrim_loss = [0]
-    mnist_gen_loss = [0]
-    cats_gen_loss = [0]
-    mnist_cyc_loss = [0]
-    cats_cyc_loss = [0]
+    mnist_discrim_loss = []
+    cats_discrim_loss = []
+    mnist_gen_loss = []
+    cats_gen_loss = []
+    mnist_cyc_loss = []
+    cats_cyc_loss = []
 
     if not os.path.exists(SAVEPATH):
         os.makedirs(os.path.join(SAVEPATH, 'images'))
@@ -170,7 +170,7 @@ def test_cyclegan():
         test_collage = Image.fromarray(test_collage, mode='L')
         test_collage.save(os.path.join(SAVEPATH, 'images', str(epoch-1)+'.jpg'))
 
-        for batch in range(int(100)):
+        for batch in range(int(1000)):
             print("\nBatch", batch)
             # Get batch.
             mnist_indices = np.random.choice(mnist_images.shape[0], batch_size)
@@ -185,24 +185,30 @@ def test_cyclegan():
             generation_history_cats = np.concatenate((generation_history_cats[batch_size:], cats_batch_gen))
 
             # Train discriminators.
+            real_label = np.ones(batch_size)
+            fake_label = np.zeros(batch_size)
+
             mnist_discrim_loss.append(discriminator_mnist.train_on_batch(np.concatenate((generation_history_mnist[:batch_size], mnist_batch_real)),
-                                            np.concatenate((np.zeros(batch_size), np.ones(batch_size)))))
-            print("MNIST Discriminator Loss:", mnist_discrim_loss[-1])
+                                            np.concatenate((fake_label, real_label))))
+
             cats_discrim_loss.append(discriminator_cats.train_on_batch(np.concatenate((generation_history_cats[:batch_size], cats_batch_real)),
-                                            np.concatenate((np.zeros(batch_size), (np.ones(batch_size))))))
-            print("Cats Discriminator Loss:", cats_discrim_loss[-1])
+                                            np.concatenate((fake_label, real_label))))
 
             # Train generators.
-            mnist_gen_loss.append(mnist_gen_trainer.train_on_batch(cats_batch_real, np.ones(batch_size)))
-            print("MNIST Generator Loss:", mnist_gen_loss[-1])
-            cats_gen_loss.append(cat_gen_trainer.train_on_batch(mnist_batch_real, np.ones(batch_size)))
-            print("cats Generator Loss:", cats_gen_loss[-1])
+            loss = gen_trainer.train_on_batch([cats_batch_real, mnist_batch_real], [real_label, real_label, cats_batch_real, mnist_batch_real])
 
-            cyc_multiplier = 2.
-            mnist_cyc_loss.append(mnist_cyc.train_on_batch(mnist_batch_real, mnist_batch_real)
-            print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
-            cats_cyc_loss.append(cats_cyc.train_on_batch(cats_batch_real, cats_batch_real)
-            print("Cats Cyclic Loss:", cats_cyc_loss[-1])
+            cats_gen_loss.append(loss[0])
+            mnist_gen_loss.append(loss[1])
+            mnist_cyc_loss.append(loss[2])
+            cats_cyc_loss.append(loss[3])
+
+            if (batch%100 == 0):
+                print("MNIST Discriminator Loss:", mnist_discrim_loss[-1])
+                print("Cats Discriminator Loss:", cats_discrim_loss[-1])
+                print("MNIST Generator Loss:", mnist_gen_loss[-1])
+                print("Cats Generator Loss:", cats_gen_loss[-1])
+                print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
+                print("Cats Cyclic Loss:", cats_cyc_loss[-1])
 
     # Save models.
     generator_cats.save(os.path.join(SAVEPATH, 'generator_cats.h5'))
