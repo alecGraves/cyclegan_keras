@@ -91,7 +91,7 @@ def test_cyclegan():
     cats = load_input_images()
 
     nb_epochs = 200
-    batch_size = 1
+    batch_size = 128
     adam_lr = 0.0002
     adam_beta_1 = 0.5
     adam_decay = 0.000001
@@ -170,8 +170,7 @@ def test_cyclegan():
         test_collage = Image.fromarray(test_collage, mode='L')
         test_collage.save(os.path.join(SAVEPATH, 'images', str(epoch-1)+'.jpg'))
 
-        for batch in range(int(1000)):
-            print("\nBatch", batch)
+        for batch in range(100):
             # Get batch.
             mnist_indices = np.random.choice(mnist_images.shape[0], batch_size)
             mnist_batch_real = mnist_images[mnist_indices]
@@ -195,7 +194,7 @@ def test_cyclegan():
                                             np.concatenate((fake_label, real_label))))
 
             # Train generators.
-            loss = gen_trainer.train_on_batch([cats_batch_real, mnist_batch_real], [real_label, real_label, cats_batch_real, mnist_batch_real])
+            loss = gen_trainer.train_on_batch([cats_batch_real, mnist_batch_real], [real_label, real_label, mnist_batch_real, cats_batch_real])
 
             cats_gen_loss.append(loss[0])
             mnist_gen_loss.append(loss[1])
@@ -203,12 +202,13 @@ def test_cyclegan():
             cats_cyc_loss.append(loss[3])
 
             if (batch%100 == 0):
-                print("MNIST Discriminator Loss:", mnist_discrim_loss[-1],
-                "\nCats Discriminator Loss:", cats_discrim_loss[-1],
-                "\nMNIST Generator Loss:", mnist_gen_loss[-1],
-                "\nCats Generator Loss:", cats_gen_loss[-1],
-                "\nMNIST Cyclic Loss:", mnist_cyc_loss[-1],
-                "\nCats Cyclic Loss:", cats_cyc_loss[-1])
+                print("\nBatch", batch,
+                      "\nMNIST Discriminator Loss:", mnist_discrim_loss[-1],
+                      "\nCats Discriminator Loss:", cats_discrim_loss[-1],
+                      "\nMNIST Generator Loss:", mnist_gen_loss[-1],
+                      "\nCats Generator Loss:", cats_gen_loss[-1],
+                      "\nMNIST Cyclic Loss:", mnist_cyc_loss[-1],
+                      "\nCats Cyclic Loss:", cats_cyc_loss[-1])
 
     # Save models.
     generator_cats.save(os.path.join(SAVEPATH, 'generator_cats.h5'))
