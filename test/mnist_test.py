@@ -91,42 +91,62 @@ def test_cyclegan():
     cats = load_input_images()
 
     nb_epochs = 200
-    batch_size = 128
+    batch_size = 256
     adam_lr = 0.0002
     adam_beta_1 = 0.5
-    adam_decay = 0.000001
+    adam_decay = 0
+    cyc_multiplier = 10
     history_size = int(batch_size * 7/3)
+    SAVEPATH = 'data'
+
     generation_history_mnist = None
     generation_history_cats = None
-    SAVEPATH = 'data'
+
+    adam_optimizer = Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay)
+
 
     mnist_input = Input(mnist_shape)
     cat_input = Input(mnist_shape)
 
     generator_cats = mnist_generator(mnist_shape)
-    discriminator_cats = mnist_discriminator(mnist_shape)
-    generator_mnist = mnist_generator(mnist_shape)
-    discriminator_mnist = mnist_discriminator(mnist_shape)
+    generator_cats.summary()
+    generator_cats.compile(optimizer=adam_optimizer, loss='mean_squared_error')
 
-    discriminator_cats.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss='mean_squared_error')
-    discriminator_mnist.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss='mean_squared_error')
-    generator_cats.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss='mean_squared_error')
-    generator_mnist.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), loss='mean_squared_error')
+    discriminator_cats = mnist_discriminator(mnist_shape)
+    discriminator_cats.summary()
+    discriminator_cats.compile(optimizer=adam_optimizer, loss='mean_squared_error')
+
+    generator_mnist = mnist_generator(mnist_shape)
+    generator_mnist.summary()
+    generator_mnist.compile(optimizer=adam_optimizer, loss='mean_squared_error')
+
+    discriminator_mnist = mnist_discriminator(mnist_shape)
+    discriminator_mnist.summary()
+    discriminator_mnist.compile(optimizer=adam_optimizer, loss='mean_squared_error')
 
     fake_cat = generator_cats(mnist_input)
     fake_mnist = generator_mnist(cat_input)
 
     # Only train discriminator during first phase
-    # (only affects new models when they are compiled)
+    # (trainable only affects new models when they are compiled)
     discriminator_cats.trainable = False
     discriminator_mnist.trainable = False
 
-    gen_trainer = Model([cat_input, mnist_input], [discriminator_cats(fake_cat),  discriminator_mnist(fake_mnist),
-                                               generator_mnist(fake_cat), generator_cats(fake_mnist)])
+    mnist_gen_trainer = Model(cat_input, discriminator_mnist(fake_mnist))
+    mnist_gen_trainer.summary()
+    mnist_gen_trainer.compile(optimizer=adam_optimizer, loss='mean_squared_error')
 
-    gen_trainer.compile(optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay), 
-                    loss=['mean_squared_error', 'mean_squared_error', cycle_loss, cycle_loss], 
-                    loss_weights=[1., 1., 10., 10.])
+    cats_gen_trainer = Model(mnist_input, discriminator_cats(fake_cat))
+    cats_gen_trainer.summary()
+    cats_gen_trainer.compile(optimizer=adam_optimizer, loss='mean_squared_error')
+
+    mnist_cyc = Model(mnist_input, generator_mnist(fake_cat))
+    mnist_cyc.summary()
+    mnist_cyc.compile(optimizer=adam_optimizer, loss=cycle_loss, loss_weights=[cyc_multiplier])
+
+    cats_cyc = Model(cat_input, generator_cats(fake_mnist))
+    cats_cyc.summary()
+    cats_cyc.compile(optimizer=adam_optimizer, loss=cycle_loss, loss_weights=[cyc_multiplier])
 
     # training time
 
@@ -170,7 +190,8 @@ def test_cyclegan():
         test_collage = Image.fromarray(test_collage, mode='L')
         test_collage.save(os.path.join(SAVEPATH, 'images', str(epoch-1)+'.jpg'))
 
-        for batch in range(100):
+        for batch in range(int(10000/batch_size)):
+            print("\nEpoch:", epoch, "| Batch:", batch)
             # Get batch.
             mnist_indices = np.random.choice(mnist_images.shape[0], batch_size)
             mnist_batch_real = mnist_images[mnist_indices]
@@ -189,26 +210,22 @@ def test_cyclegan():
 
             mnist_discrim_loss.append(discriminator_mnist.train_on_batch(np.concatenate((generation_history_mnist[:batch_size], mnist_batch_real)),
                                             np.concatenate((fake_label, real_label))))
+            print("MNIST Discriminator Loss:", mnist_discrim_loss[-1])
 
             cats_discrim_loss.append(discriminator_cats.train_on_batch(np.concatenate((generation_history_cats[:batch_size], cats_batch_real)),
                                             np.concatenate((fake_label, real_label))))
+            print("Cats Discriminator Loss:", cats_discrim_loss[-1])
 
             # Train generators.
-            loss = gen_trainer.train_on_batch([cats_batch_real, mnist_batch_real], [real_label, real_label, mnist_batch_real, cats_batch_real])
+            mnist_gen_loss.append(mnist_gen_trainer.train_on_batch(cats_batch_real, real_label))
+            print("MNIST Generator Loss:", mnist_gen_loss[-1])
+            cats_gen_loss.append(cats_gen_trainer.train_on_batch(mnist_batch_real, real_label))
+            print("Cats Generator Loss:", cats_gen_loss[-1])
 
-            cats_gen_loss.append(loss[0])
-            mnist_gen_loss.append(loss[1])
-            mnist_cyc_loss.append(loss[2])
-            cats_cyc_loss.append(loss[3])
-
-            if (batch%100 == 0):
-                print("\nBatch", batch,
-                      "\nMNIST Discriminator Loss:", mnist_discrim_loss[-1],
-                      "\nCats Discriminator Loss:", cats_discrim_loss[-1],
-                      "\nMNIST Generator Loss:", mnist_gen_loss[-1],
-                      "\nCats Generator Loss:", cats_gen_loss[-1],
-                      "\nMNIST Cyclic Loss:", mnist_cyc_loss[-1],
-                      "\nCats Cyclic Loss:", cats_cyc_loss[-1])
+            mnist_cyc_loss.append(mnist_cyc.train_on_batch(mnist_batch_real, mnist_batch_real))
+            print("MNIST Cyclic Loss:", mnist_cyc_loss[-1])
+            cats_cyc_loss.append(cats_cyc.train_on_batch(cats_batch_real, cats_batch_real))
+            print("Cats Cyclic Loss:", cats_cyc_loss[-1])
 
     # Save models.
     generator_cats.save(os.path.join(SAVEPATH, 'generator_cats.h5'))
