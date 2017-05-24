@@ -2,6 +2,7 @@
 *.jpg
 *.json
 *.h5
+test/history/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

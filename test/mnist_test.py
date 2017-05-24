@@ -35,7 +35,8 @@ def load_mnist():
         input_shape = (img_rows, img_cols, 1)
 
     x_train = x_train.astype(k.floatx())
-    x_train /= 255
+    x_train *= 0.96/255
+    x_train += 0.02
     return input_shape, x_train
 
 def load_input_images(from_jpegs=False):
@@ -46,8 +47,9 @@ def load_input_images(from_jpegs=False):
         images[i] = Image.open(os.path.join(current_dir,
                                             'images',
                                             filename)).resize((28, 28)).convert('L')
-    images = images.astype('float32')
-    images /= 255
+    images = images.astype(k.floatx())
+    images *= 0.96/255
+    images += 0.02
     if k.image_data_format() == 'channels_first':
         images = images.reshape(images.shape[0], 1, 28, 28)
     else:
@@ -78,7 +80,8 @@ def load_input_images(from_jpegs=False):
 
 
 def prettify(image):
-    image *= 255
+    image += -0.02
+    image *= 255/0.96
     image = np.uint8(image)
     if k.image_data_format() == 'channels_first':
         image = np.reshape(image, (image.shape[2], image.shape[3]))
@@ -90,11 +93,11 @@ def test_cyclegan():
     mnist_shape, mnist_images = load_mnist()
     cats = load_input_images()
 
-    nb_epochs = 200
-    batch_size = 256
+    nb_epochs = 100
+    batch_size = 512
     adam_lr = 0.0002
     adam_beta_1 = 0.5
-    adam_decay = 0
+    adam_decay = 0 # adam_lr/(nb_epochs*120)
     cyc_multiplier = 10
     history_size = int(batch_size * 7/3)
     SAVEPATH = 'data'
@@ -104,25 +107,24 @@ def test_cyclegan():
 
     adam_optimizer = Adam(lr=adam_lr, beta_1=adam_beta_1, decay=adam_decay)
 
+    generator_cats = mnist_generator(mnist_shape)
+    generator_cats.compile(optimizer=adam_optimizer, loss='mean_squared_error')
+    generator_cats.summary()
+
+    discriminator_cats = mnist_discriminator(mnist_shape)
+    discriminator_cats.compile(optimizer=adam_optimizer, loss=discriminator_loss)
+    discriminator_cats.summary()
+
+    generator_mnist = mnist_generator(mnist_shape)
+    generator_mnist.compile(optimizer=adam_optimizer, loss='mean_squared_error')
+    generator_mnist.summary()
+
+    discriminator_mnist = mnist_discriminator(mnist_shape)
+    discriminator_mnist.compile(optimizer=adam_optimizer, loss=discriminator_loss)
+    discriminator_mnist.summary()
 
     mnist_input = Input(mnist_shape)
     cat_input = Input(mnist_shape)
-
-    generator_cats = mnist_generator(mnist_shape)
-    generator_cats.summary()
-    generator_cats.compile(optimizer=adam_optimizer, loss='mean_squared_error')
-
-    discriminator_cats = mnist_discriminator(mnist_shape)
-    discriminator_cats.summary()
-    discriminator_cats.compile(optimizer=adam_optimizer, loss='mean_squared_error')
-
-    generator_mnist = mnist_generator(mnist_shape)
-    generator_mnist.summary()
-    generator_mnist.compile(optimizer=adam_optimizer, loss='mean_squared_error')
-
-    discriminator_mnist = mnist_discriminator(mnist_shape)
-    discriminator_mnist.summary()
-    discriminator_mnist.compile(optimizer=adam_optimizer, loss='mean_squared_error')
 
     fake_cat = generator_cats(mnist_input)
     fake_mnist = generator_mnist(cat_input)
@@ -133,20 +135,20 @@ def test_cyclegan():
     discriminator_mnist.trainable = False
 
     mnist_gen_trainer = Model(cat_input, discriminator_mnist(fake_mnist))
-    mnist_gen_trainer.summary()
     mnist_gen_trainer.compile(optimizer=adam_optimizer, loss='mean_squared_error')
+    mnist_gen_trainer.summary()
 
     cats_gen_trainer = Model(mnist_input, discriminator_cats(fake_cat))
-    cats_gen_trainer.summary()
     cats_gen_trainer.compile(optimizer=adam_optimizer, loss='mean_squared_error')
+    cats_gen_trainer.summary()
 
     mnist_cyc = Model(mnist_input, generator_mnist(fake_cat))
-    mnist_cyc.summary()
     mnist_cyc.compile(optimizer=adam_optimizer, loss=cycle_loss, loss_weights=[cyc_multiplier])
+    mnist_cyc.summary()
 
     cats_cyc = Model(cat_input, generator_cats(fake_mnist))
-    cats_cyc.summary()
     cats_cyc.compile(optimizer=adam_optimizer, loss=cycle_loss, loss_weights=[cyc_multiplier])
+    cats_cyc.summary()
 
     # training time
 
@@ -188,10 +190,10 @@ def test_cyclegan():
         cat_test_images =  np.concatenate((prettify(cat_in), prettify(mnist_out), prettify(cat_cyc_out)), axis=1)
         test_collage = np.concatenate((mnist_test_images, cat_test_images), axis=0)
         test_collage = Image.fromarray(test_collage, mode='L')
-        test_collage.save(os.path.join(SAVEPATH, 'images', str(epoch-1)+'.jpg'))
+        test_collage.save(os.path.join(SAVEPATH, 'images', str(epoch)+'.png'))
 
-        for batch in range(int(10000/batch_size)):
-            print("\nEpoch:", epoch, "| Batch:", batch)
+        for batch in range(int(mnist_images.shape[0]/batch_size)):
+            print("\nEpoch", epoch, "| Batch", batch)
             # Get batch.
             mnist_indices = np.random.choice(mnist_images.shape[0], batch_size)
             mnist_batch_real = mnist_images[mnist_indices]

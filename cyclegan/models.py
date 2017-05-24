@@ -59,7 +59,6 @@ def mnist_generator(input_shape=(28, 28, 1), scale=1/4):
     x = LeakyReLU()(x)
     x = residual_block(x, scale, num_id=2)
     x = residual_block(x, scale*2, num_id=3)
-    x = residual_block(x, scale*4, num_id=4)
     x = UpSampling2D(size=(2, 2))(x)
     x = Conv2D(int(1024*scale), (1, 1))(x)
     x = InstanceNormalization()(x)
