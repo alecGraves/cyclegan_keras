@@ -1,3 +1,0 @@
-{
-    "mnist_cyc_loss": [
-        
