@@ -93,7 +93,7 @@ def test_cyclegan():
     mnist_shape, mnist_images = load_mnist()
     cats = load_input_images()
 
-    nb_epochs = 100
+    nb_epochs = 50
     batch_size = 512
     adam_lr = 0.0002
     adam_beta_1 = 0.5
