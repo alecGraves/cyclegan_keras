@@ -100,7 +100,7 @@ def test_cyclegan():
     adam_decay = 0 # adam_lr/(nb_epochs*120)
     cyc_multiplier = 10
     history_size = int(batch_size * 7/3)
-    SAVEPATH = 'data'
+    SAVEPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), 'output'))
 
     generation_history_mnist = None
     generation_history_cats = None
