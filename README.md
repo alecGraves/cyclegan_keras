@@ -8,6 +8,7 @@ cyclegan reimplimented in keras
 
 ## What needs to be done?
 * Bigger models for non-mnist images need to be created
+* All of the generator training models should probably be convered into one model for a real problem.
 
 ## Pictures!
 For the test training script, I decided to have cyclegan learn a mapping from cat pictures to mnist pictures (and back).
