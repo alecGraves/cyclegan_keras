@@ -1,5 +1,5 @@
 # cyclegan_keras
-cyclegan reimplimented in keras
+[CycleGAN](https://github.com/junyanz/CycleGAN) reimplimented in Keras
 
 ## What has been made?
 * Instance Norm  layer for keras
