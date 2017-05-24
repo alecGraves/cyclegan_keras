@@ -27,5 +27,7 @@ Here are some results (from various stages of training):
 
 ![72](/test/example_output/images/72.png)
 
+![80](/test/example_output/images/80.png)
+
 ![90](/test/example_output/images/90.png)
 
